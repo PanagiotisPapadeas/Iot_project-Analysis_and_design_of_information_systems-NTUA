@@ -46,7 +46,7 @@ word_count_data = ["To be, or not to be,--that is the question:--",
 
 def word_count(input_path, output_path):
     env = StreamExecutionEnvironment.get_execution_environment()
-    env.set_runtime_mode(RuntimeExecutionMode.BATCH)
+    env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
     # write all the data to one file
     env.set_parallelism(1)
 
