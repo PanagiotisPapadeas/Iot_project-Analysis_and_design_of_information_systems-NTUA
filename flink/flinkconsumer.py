@@ -72,10 +72,10 @@ def word_count(input_path, output_path):
         yield from line.split()
 
     # compute word count
-    ds = ds.flat_map(split) \
-        .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
-        .key_by(lambda i: i[0]) \
-        .reduce(lambda i, j: (i[0], i[1] + j[1]))
+    # ds = ds.flat_map(split) \
+    #     .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+    #     .key_by(lambda i: i[0]) \
+    #     .reduce(lambda i, j: (i[0], i[1] + j[1]))
 
     # define the sink
     # if output_path is not None:
