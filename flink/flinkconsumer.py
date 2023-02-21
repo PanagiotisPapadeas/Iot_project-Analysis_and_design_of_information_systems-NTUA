@@ -1,11 +1,13 @@
 import argparse
 import logging
 import sys
+from datetime import datetime
 
-from pyflink.common import WatermarkStrategy, Encoder, Types, SimpleStringSchema
+from pyflink.common import WatermarkStrategy, Encoder, Types, SimpleStringSchema, Time
 from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode
 from pyflink.datastream.connectors.file_system import FileSource, StreamFormat, FileSink, OutputFileConfig, RollingPolicy
 from pyflink.datastream.connectors.kafka import KafkaSource, KafkaOffsetsInitializer
+from pyflink.datastream.window import TumblingEventTimeWindows, TumblingProcessingTimeWindows
 
 word_count_data = ["To be, or not to be,--that is the question:--",
                    "Whether 'tis nobler in the mind to suffer",
@@ -76,14 +78,20 @@ def word_count(input_path, output_path):
         for i in line.split():      
             x.append(i)
         temp = x[1] + " " + x[2]    
-        y = (x[0], temp, x[3])
+        y = (x[0], temp, float(x[3]))
         # print(x)
         #y = tuple(new_x)    
-        return y   
+        return y  
+     
 
     # compute word count
-    #ds = ds.my_map_func(split)
-    ds = ds.map(my_map_func, output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.STRING()]))
+    #ds = ds.flat_map(split)
+    ds = ds.map(my_map_func, output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+
+    result = ds.key_by(lambda i: i[0]) \
+               .window(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+               .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
+
         # .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()]))
         # .key_by(lambda i: i[0]) \
         # .reduce(lambda i, j: (i[0], i[1] + j[1]))
@@ -104,7 +112,8 @@ def word_count(input_path, output_path):
     #     )
     # else:
     print("Printing result to stdout. Use --output to specify output path.")
-    ds.print()
+    #ds.print()
+    result.print()
 
     # submit for execution
     env.execute()
