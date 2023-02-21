@@ -68,14 +68,25 @@ def word_count(input_path, output_path):
     #     print("Use --input to specify file input.")
     #     ds = env.from_collection(word_count_data)
 
-    def split(line):
-        yield from line.split()
+    # def split(line):
+    #     yield from line.split()
+
+    def my_map_func(line):
+        x = []
+        for i in line.split():      
+            x.append(i)
+        temp = x[1] + " " + x[2]    
+        y = (x[0], temp, x[3])
+        # print(x)
+        #y = tuple(new_x)    
+        return y   
 
     # compute word count
-    # ds = ds.flat_map(split) \
-    #     .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
-    #     .key_by(lambda i: i[0]) \
-    #     .reduce(lambda i, j: (i[0], i[1] + j[1]))
+    #ds = ds.my_map_func(split)
+    ds = ds.map(my_map_func, output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.STRING()]))
+        # .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()]))
+        # .key_by(lambda i: i[0]) \
+        # .reduce(lambda i, j: (i[0], i[1] + j[1]))
 
     # define the sink
     # if output_path is not None:
