@@ -34,9 +34,8 @@ def read_from_kafka(env):
         .build()
 
     kafka_consumer = FlinkKafkaConsumer(
-        topics='TutorialTopic',
-        deserialization_schema=deserialization_schema,
-        properties={'bootstrap.servers': 'localhost:9092'} #, 'group.id': 'test_group_1'
+        topics='rawData',
+        properties={'bootstrap.servers': 'localhost:19092'} #, 'group.id': 'test_group_1'
     )
     kafka_consumer.set_start_from_earliest()
 

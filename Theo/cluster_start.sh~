@@ -1,0 +1,12 @@
+#!/bin/bash
+
+sudo docker compose up -d
+
+echo "$(tput setaf 6)"
+echo "Creating synced_data topic...$(tput setaf 2)"
+
+../kafka/./bin/kafka-topics.sh --bootstrap-server=localhost:19092 --create --topic synced_data --partitions 10 --replication-factor 2
+
+echo "$(tput setaf 6)Creating late_rejected topic...$(tput setaf 2)"
+
+../kafka/./bin/kafka-topics.sh --bootstrap-server=localhost:19092 --create --topic late_rejected --partitions 10 --replication-factor 2
