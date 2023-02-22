@@ -69,15 +69,15 @@ while True:
             Wtot = round((Wtot + 110 + Wtotval),1)
             count2 = 0
 
-        # #every 5 hours    
-        # if (count3 >= 10):
-        #     W2val = round(random.uniform(0, 1),1)
-        #     delayed_date1 = date - dt.timedelta(hours=48)
-        #     print("20")
-        #     s11 = bytes("W1 " + str(delayed_date1) + " "+ str(W2val), 'utf-8')
-        #     producer.send('dailyAggr', s11)
-        #     print("W1", delayed_date1, W2val)
-        #     count3 = 0
+        #every 5 hours    
+        if (count3 >= 2):
+            W2val = round(random.uniform(0, 1),1)
+            delayed_date1 = date - dt.timedelta(hours=2)
+            print("20")
+            s11 = bytes("W1 " + str(delayed_date1) + " "+ str(W2val), 'utf-8')
+            producer.send('dailyAggr', s11, partition=1)
+            print("W1", delayed_date1, W2val)
+            count3 = 0
 
         # #every 30 hours    
         # if (count4 >= 15):

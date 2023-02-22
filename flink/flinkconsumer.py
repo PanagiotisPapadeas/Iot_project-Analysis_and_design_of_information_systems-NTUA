@@ -55,7 +55,7 @@ def my_map_func(line):
     for i in line.split():      
         x.append(i)
     temp = x[1] + " " + x[2]    
-    y = (x[0], temp, int(float(x[3])))  
+    y = (x[0], temp, float(x[3]))  
     return y  
      
 def live_streaming_layer(input_path, output_path):
@@ -148,6 +148,7 @@ def live_streaming_layer(input_path, output_path):
 
     result1 = with_timestamp_and_watermarks1.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
+               .allowed_lateness((2*86400+10)*1e3) \
                .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
 
     result2 = with_timestamp_and_watermarks2.key_by(lambda i: i[0]) \
@@ -180,8 +181,8 @@ def live_streaming_layer(input_path, output_path):
     print("Printing result to stdout. Use --output to specify output path.")
     #ds.print()
     #result.print()
-    #result1.print()
-    result2.print()
+    result1.print()
+    #result2.print()
     #print(result2[2], "edobroskimou")
     #result3.print()
 
