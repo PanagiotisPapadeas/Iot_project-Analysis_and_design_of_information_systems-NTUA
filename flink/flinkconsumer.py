@@ -1,7 +1,7 @@
 import argparse
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Tuple
 
 from pyflink.common.watermark_strategy import TimestampAssigner
@@ -151,8 +151,8 @@ def live_streaming_layer(input_path, output_path):
                .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
 
     result2 = with_timestamp_and_watermarks2.key_by(lambda i: i[0]) \
-               .window(SlidingEventTimeWindows.of(Time.seconds(6500), Time.seconds(3602))) \
-               .reduce(lambda v1, v2: (v1[0], v1[1], v2[2] - v1[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+               .window(SlidingEventTimeWindows.of(Time.seconds(7000), Time.seconds(3602))) \
+               .reduce(lambda v1, v2: (v1[0], str(datetime.strptime(v1[1], '%Y-%m-%d %H:%M:%S') - timedelta(minutes=45)), v2[2] - v1[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
 
     result3 = with_timestamp_and_watermarks3.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
@@ -182,6 +182,7 @@ def live_streaming_layer(input_path, output_path):
     #result.print()
     #result1.print()
     result2.print()
+    #print(result2[2], "edobroskimou")
     #result3.print()
 
     # submit for execution

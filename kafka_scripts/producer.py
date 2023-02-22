@@ -51,7 +51,7 @@ while True:
         if (move_possibility == 0) :
             move_date = date + dt.timedelta(seconds=secs)
             s8 = bytes("Mov1 " + str(move_date) + " " + str(1), 'utf-8')
-            producer.send('dailyAggr', s8)
+            producer.send('dailyAggr', s8, partition=3)
             print("Mov1", move_date, 1)
         
         #every 1 day
