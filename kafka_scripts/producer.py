@@ -54,20 +54,20 @@ while True:
             producer.send('dailyAggr', s8)
             print("Mov1", move_date, 1)
         
-        # #every 1 day
-        # if (count2 >= 5):
-        #     Etotval = round(random.uniform(-1000, 1000),1)
-        #     Wtotval = round(random.uniform(-10, 10),1)
-        #     print("40")
-        #     s9 = bytes("Etot " + str(date) + " "+ str(Etot), 'utf-8')
-        #     s10 = bytes("Wtot " + str(date) + " "+ str(Wtot), 'utf-8')
-        #     producer.send('dailyAggr', s9)
-        #     producer.send('dailyAggr', s10)
-        #     print("Etot", date, Etot)
-        #     print("Wtot", date, Wtot)
-        #     Etot = round((Etot + (2600*24) + Etotval),1)
-        #     Wtot = round((Wtot + 110 + Wtotval),1)
-        #     count2 = 0
+        #every 1 day
+        if (count2 >= 4):
+            Etotval = round(random.uniform(-1000, 1000),1)
+            Wtotval = round(random.uniform(-10, 10),1)
+            print("40")
+            s9 = bytes("Etot " + str(date) + " "+ str(Etot), 'utf-8')
+            s10 = bytes("Wtot " + str(date) + " "+ str(Wtot), 'utf-8')
+            producer.send('dailyAggr', s9, partition=2)
+            producer.send('dailyAggr', s10, partition=2)
+            print("Etot", date, Etot)
+            print("Wtot", date, Wtot)
+            Etot = round((Etot + (2600*24) + Etotval),1)
+            Wtot = round((Wtot + 110 + Wtotval),1)
+            count2 = 0
 
         # #every 5 hours    
         # if (count3 >= 10):

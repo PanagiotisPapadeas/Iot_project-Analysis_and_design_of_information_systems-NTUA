@@ -2,13 +2,42 @@ import argparse
 import logging
 import sys
 from datetime import datetime
+from typing import Tuple
 
 from pyflink.common.watermark_strategy import TimestampAssigner
 from pyflink.common import WatermarkStrategy, Encoder, Types, SimpleStringSchema, Time, Duration
-from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode
+from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode, AggregateFunction
 from pyflink.datastream.connectors.file_system import FileSource, StreamFormat, FileSink, OutputFileConfig, RollingPolicy
 from pyflink.datastream.connectors.kafka import KafkaSource, KafkaOffsetsInitializer, KafkaTopicPartition
-from pyflink.datastream.window import TumblingEventTimeWindows, TumblingProcessingTimeWindows
+from pyflink.datastream.window import TumblingEventTimeWindows, TumblingProcessingTimeWindows, SlidingEventTimeWindows
+
+class AverageAggregate(AggregateFunction):
+ 
+    def create_accumulator(self) -> Tuple[int, int]:
+        return 0, 0
+
+    def add(self, value: Tuple[str, str, int], accumulator: Tuple[int, int]) -> Tuple[int, int]:
+        return accumulator[0] + value[2], accumulator[1] + 1
+
+    def get_result(self, accumulator: Tuple[int, int]) -> float:
+        return accumulator[0] / accumulator[1]
+
+    def merge(self, a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+        return a[0] + b[0], a[1] + b[1]
+
+# class AverageAggregate(AggregateFunction):
+ 
+#     def create_accumulator(self) -> Tuple[str, str, float, int]:
+#         return 0, 0, 0, 0
+
+#     def add(self, value: Tuple[str, str, float], accumulator: Tuple[str, str, float, int]) -> Tuple[str, str, float, int]:
+#         return value[0], value[1], accumulator[2] + value[2], accumulator[3] + 1
+
+#     def get_result(self, accumulator: Tuple[str, str, float, int]) -> Tuple[str, str, float]:
+#         return accumulator[0], accumulator[1], accumulator[2] / accumulator[3]
+
+#     def merge(self, a: Tuple[str, str, float, int], b: Tuple[str, str, float, int]) -> Tuple[str, str, float, int]:
+#         return a[0], a[1], a[2] + b[2], a[3] + b[3]
 
 class KafkaRowTimestampAssigner(TimestampAssigner):
 
@@ -26,7 +55,7 @@ def my_map_func(line):
     for i in line.split():      
         x.append(i)
     temp = x[1] + " " + x[2]    
-    y = (x[0], temp, float(x[3]))  
+    y = (x[0], temp, int(float(x[3])))  
     return y  
      
 def live_streaming_layer(input_path, output_path):
@@ -115,15 +144,15 @@ def live_streaming_layer(input_path, output_path):
     
     result = with_timestamp_and_watermarks.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
-               .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+               .reduce(lambda v1, v2: (v1[0], v1[1], (v1[2] + v2[2])/2), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
 
     result1 = with_timestamp_and_watermarks1.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
                .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
 
     result2 = with_timestamp_and_watermarks2.key_by(lambda i: i[0]) \
-               .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
-               .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+               .window(SlidingEventTimeWindows.of(Time.seconds(6500), Time.seconds(3602))) \
+               .reduce(lambda v1, v2: (v1[0], v1[1], v2[2] - v1[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
 
     result3 = with_timestamp_and_watermarks3.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
@@ -150,10 +179,10 @@ def live_streaming_layer(input_path, output_path):
     # else:
     print("Printing result to stdout. Use --output to specify output path.")
     #ds.print()
-    result.print()
-    result1.print()
+    #result.print()
+    #result1.print()
     result2.print()
-    result3.print()
+    #result3.print()
 
     # submit for execution
     env.execute()
