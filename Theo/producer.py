@@ -31,7 +31,7 @@ while True:
         s4 = bytes("MiAC1 " + str(date) + " "+ str(MiAC1val), 'utf-8')
         s5 = bytes("MiAC2 " + str(date) + " "+ str(MiAC2val), 'utf-8')
         s6 = bytes("W1 " + str(date) + " "+ str(W1val), 'utf-8')
-        producer.send('dailyAggr', s1)
+        producer.send('dailyAggr', s1, partition=2)
         # producer.send('dailyAggr', s2)
         # producer.send('dailyAggr', s3)
         # producer.send('dailyAggr', s4)

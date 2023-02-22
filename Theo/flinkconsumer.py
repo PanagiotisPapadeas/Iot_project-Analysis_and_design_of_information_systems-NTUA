@@ -7,15 +7,19 @@ from pyflink.common.watermark_strategy import TimestampAssigner
 from pyflink.common import WatermarkStrategy, Duration, Encoder, Types, SimpleStringSchema, Time
 from pyflink.datastream import TimeCharacteristic, StreamExecutionEnvironment, RuntimeExecutionMode
 from pyflink.datastream.connectors.file_system import FileSource, StreamFormat, FileSink, OutputFileConfig, RollingPolicy
-from pyflink.datastream.connectors.kafka import KafkaSource, KafkaOffsetsInitializer
+from pyflink.datastream.connectors.kafka import KafkaSource, KafkaOffsetsInitializer, KafkaTopicPartition
 from pyflink.datastream.window import TumblingEventTimeWindows, TumblingProcessingTimeWindows
 
 class KafkaRowTimestampAssigner(TimestampAssigner):
 
     def extract_timestamp(self, value, record_timestamp):
-        dateTime = value.split()[1] + " " + value.split()[2]
-        datetime_object = datetime.strptime(dateTime, '%m/%d/%y %H:%M:%S')
-        return datetime_object
+        temporary = str(value[1])
+        #print(temporary)
+        datetime_object = datetime.strptime(temporary, '%Y-%m-%d %H:%M:%S')
+        #print(datetime_object)
+        final = int(datetime_object.timestamp()*1e3)
+        #print(final)
+        return final
 
 def live_streaming_layer(input_path, output_path):
     env = StreamExecutionEnvironment.get_execution_environment()
@@ -37,14 +41,21 @@ def live_streaming_layer(input_path, output_path):
         #     source_name="file_source"
         # )
 
+    partition_set = {
+        KafkaTopicPartition("dailyAggr", 2),
+        #KafkaTopicPartition("dailyAgg", 5)
+    }
+
     source = KafkaSource.builder() \
         .set_bootstrap_servers('localhost:9092') \
         .set_topics("dailyAggr") \
+        .set_partitions(partition_set) \
         .set_group_id("my-group") \
         .set_starting_offsets(KafkaOffsetsInitializer.earliest()) \
         .set_value_only_deserializer(SimpleStringSchema()) \
         .build()
-    ds = env.from_source(source, WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(KafkaRowTimestampAssigner()), "Kafka Source") # .for_bounded_out_of_orderness(Duration.ofSeconds(48*3600)).with_timestamp_assigner(KafkaRowTimestampAssigner())
+
+    ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "Kafka Source") # .for_bounded_out_of_orderness(Duration.ofSeconds(48*3600)).with_timestamp_assigner(KafkaRowTimestampAssigner())
 
     def my_map_func(event):
         x = []
@@ -57,8 +68,13 @@ def live_streaming_layer(input_path, output_path):
 
     ds = ds.map(my_map_func, output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
 
-    result = ds.key_by(lambda i: i[0]) \
-               .window(TumblingProcessingTimeWindows.of(Time.hours(24))) \
+    with_timestamp_and_watermarks = ds.filter(lambda e: e) \
+                                    .assign_timestamps_and_watermarks(WatermarkStrategy \
+                                    .for_bounded_out_of_orderness(Duration.of_seconds(21)) \
+                                    .with_timestamp_assigner(KafkaRowTimestampAssigner()))
+
+    result = with_timestamp_and_watermarks.key_by(lambda i: i[0]) \
+               .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
                .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
 
 
