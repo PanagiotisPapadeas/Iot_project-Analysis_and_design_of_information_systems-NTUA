@@ -48,7 +48,6 @@ def live_streaming_layer(input_path, output_path):
 
     source = KafkaSource.builder() \
         .set_bootstrap_servers('localhost:9092') \
-        .set_topics("dailyAggr") \
         .set_partitions(partition_set) \
         .set_group_id("my-group") \
         .set_starting_offsets(KafkaOffsetsInitializer.earliest()) \
