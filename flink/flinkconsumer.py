@@ -73,20 +73,30 @@ def live_streaming_layer(input_path, output_path):
         #     watermark_strategy=WatermarkStrategy.for_monotonous_timestamps(),
         #     source_name="file_source"
         # )
+
+    #TH1, TH2    
     partition_set = {
         KafkaTopicPartition("dailyAggr", 0),
     }
     
+    #HVaC, MiaC
     partition_set1 = {
         KafkaTopicPartition("dailyAggr", 1),
     }
-
+    
+    #Etot
     partition_set2 = {
         KafkaTopicPartition("dailyAggr", 2),
     }
-
+    
+    #W1
     partition_set3 = {
         KafkaTopicPartition("dailyAggr", 3),
+    }
+    
+    #Wtot
+    partition_set4 = {
+        KafkaTopicPartition("dailyAggr", 4),
     }
 
     env.add_jars("file:///home/panoplos/apache/flink-sql-connector-kafka-1.16.0.jar")
@@ -120,7 +130,15 @@ def live_streaming_layer(input_path, output_path):
         .set_group_id("my-group") \
         .set_starting_offsets(KafkaOffsetsInitializer.earliest()) \
         .set_value_only_deserializer(SimpleStringSchema()) \
-        .build()   
+        .build() 
+
+    source4 = KafkaSource.builder() \
+        .set_bootstrap_servers('localhost:9092') \
+        .set_partitions(partition_set4) \
+        .set_group_id("my-group") \
+        .set_starting_offsets(KafkaOffsetsInitializer.earliest()) \
+        .set_value_only_deserializer(SimpleStringSchema()) \
+        .build()      
          
     ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "Kafka Source")
     ds = ds.map(my_map_func, output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
@@ -134,6 +152,9 @@ def live_streaming_layer(input_path, output_path):
     ds3 = env.from_source(source3, WatermarkStrategy.no_watermarks(), "Kafka Source3")
     ds3 = ds3.map(my_map_func, output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
 
+    ds4 = env.from_source(source4, WatermarkStrategy.no_watermarks(), "Kafka Source4")
+    ds4 = ds4.map(my_map_func, output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+
     with_timestamp_and_watermarks = ds.filter(lambda e: e).assign_timestamps_and_watermarks(WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(1)).with_timestamp_assigner(KafkaRowTimestampAssigner()))
 
     with_timestamp_and_watermarks1 = ds1.filter(lambda e: e).assign_timestamps_and_watermarks(WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(1)).with_timestamp_assigner(KafkaRowTimestampAssigner()))
@@ -141,25 +162,59 @@ def live_streaming_layer(input_path, output_path):
     with_timestamp_and_watermarks2 = ds2.filter(lambda e: e).assign_timestamps_and_watermarks(WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(1)).with_timestamp_assigner(KafkaRowTimestampAssigner()))
     
     with_timestamp_and_watermarks3 = ds3.filter(lambda e: e).assign_timestamps_and_watermarks(WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(1)).with_timestamp_assigner(KafkaRowTimestampAssigner()))
-    
+
+    with_timestamp_and_watermarks4 = ds4.filter(lambda e: e).assign_timestamps_and_watermarks(WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(1)).with_timestamp_assigner(KafkaRowTimestampAssigner()))
+  
+    #TH1, TH2
     result = with_timestamp_and_watermarks.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
                .reduce(lambda v1, v2: (v1[0], v1[1], (v1[2] + v2[2])), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
                .map(lambda v: (v[0], v[1], v[2]/4), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
-
+    
+    #Etot
+    result2 = with_timestamp_and_watermarks2.key_by(lambda i: i[0]) \
+               .window(SlidingEventTimeWindows.of(Time.seconds(7198), Time.seconds(3600))) \
+               .reduce(lambda v1, v2: (v1[0], str(datetime.strptime(v1[1], '%Y-%m-%d %H:%M:%S') - timedelta(minutes=45)), v2[2] - v1[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+    
+    #HVaC, MiaC
     result1 = with_timestamp_and_watermarks1.key_by(lambda i: i[0]) \
+               .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
+               .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+    
+    #Mtot
+    result4 = with_timestamp_and_watermarks4.key_by(lambda i: i[0]) \
+               .window(SlidingEventTimeWindows.of(Time.seconds(7198), Time.seconds(3600))) \
+               .reduce(lambda v1, v2: (v1[0], str(datetime.strptime(v1[1], '%Y-%m-%d %H:%M:%S') - timedelta(minutes=45)), v2[2] - v1[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+
+    # result2 = with_timestamp_and_watermarks2.key_by(lambda i: i[0]) \
+    #            .window(SlidingEventTimeWindows.of(Time.seconds(7000), Time.seconds(3600))) \
+    #            .reduce(lambda v1, v2: (v1[0], str(datetime.strptime(v1[1], '%Y-%m-%d %H:%M:%S') - timedelta(minutes=45)), v2[2] - v1[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+    
+    result3 = with_timestamp_and_watermarks3.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
                .allowed_lateness((2*86400+10)*1e3) \
                .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
 
-    result2 = with_timestamp_and_watermarks2.key_by(lambda i: i[0]) \
-               .window(SlidingEventTimeWindows.of(Time.seconds(7000), Time.seconds(3602))) \
-               .reduce(lambda v1, v2: (v1[0], str(datetime.strptime(v1[1], '%Y-%m-%d %H:%M:%S') - timedelta(minutes=45)), v2[2] - v1[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+    resultunion = result2.union(result1)
+    resultunion1 = result4.union(result3)  
 
-    result3 = with_timestamp_and_watermarks3.key_by(lambda i: i[0]) \
-               .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
-               .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))                      
-        
+    with_timestamp_and_watermarks_union = resultunion.filter(lambda e: e).assign_timestamps_and_watermarks(WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(1)).with_timestamp_assigner(KafkaRowTimestampAssigner()))
+    with_timestamp_and_watermarks_union1 = resultunion1.filter(lambda e: e).assign_timestamps_and_watermarks(WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(1)).with_timestamp_assigner(KafkaRowTimestampAssigner()))
+    
+    resultfinal = with_timestamp_and_watermarks_union \
+                   .map(lambda v: (v[0], v[1], v[2]) if v[0] == 'Etot' else (v[0], v[1], -1*v[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
+                   .window_all(TumblingEventTimeWindows.of(Time.seconds(3602))) \
+                   .reduce (lambda v1, v2: ('AggDayRestEtot', v1[1], v1[2]+v2[2])) 
+
+    resultfinal1 = with_timestamp_and_watermarks_union1 \
+                   .window_all(TumblingEventTimeWindows.of(Time.seconds(3600))) \
+                   .reduce(lambda v1, v2: ('AggDayRestWtot', v1[1], v1[2] - v2[2]) if v1[0] == 'Wtot' else (('AggDayRestWtot', v1[1], v2[2] - v1[2]) if v2[0] == 'Wtot' else ('AggDayRestWtot', v1[1], - v1[2] - v2[2])), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+    
+    resultfinal.print()
+
+    #resultfinal1.print()
+
+
     # .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()]))
     # .key_by(lambda i: i[0]) \
     # .reduce(lambda i, j: (i[0], i[1] + j[1]))
@@ -181,11 +236,12 @@ def live_streaming_layer(input_path, output_path):
     # else:
     print("Printing result to stdout. Use --output to specify output path.")
     #ds.print()
-    result.print()
-    #result1.print()
-    #result2.print()
+    #result.print()
+    result1.print()
+    result2.print()
     #print(result2[2], "edobroskimou")
     #result3.print()
+    #result4.print()
 
     # submit for execution
     env.execute()

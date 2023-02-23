@@ -38,7 +38,7 @@ while True:
         producer.send('dailyAggr', s4, partition=1)
         producer.send('dailyAggr', s5, partition=1)
         producer.send('dailyAggr', s6, partition=1)
-        producer.send('dailyAggr', s7, partition=1)
+        producer.send('dailyAggr', s7, partition=3)
         print("TH1", date, TH1val)
         print("TH2", date, TH2val)
         print("HVAC1", date, HVAC1val)
@@ -51,7 +51,7 @@ while True:
         if (move_possibility == 0) :
             move_date = date + dt.timedelta(seconds=secs)
             s8 = bytes("Mov1 " + str(move_date) + " " + str(1), 'utf-8')
-            producer.send('dailyAggr', s8, partition=3)
+            producer.send('dailyAggr', s8, partition=5)
             print("Mov1", move_date, 1)
         
         #every 1 day
@@ -62,7 +62,7 @@ while True:
             s9 = bytes("Etot " + str(date) + " "+ str(Etot), 'utf-8')
             s10 = bytes("Wtot " + str(date) + " "+ str(Wtot), 'utf-8')
             producer.send('dailyAggr', s9, partition=2)
-            producer.send('dailyAggr', s10, partition=2)
+            producer.send('dailyAggr', s10, partition=4)
             print("Etot", date, Etot)
             print("Wtot", date, Wtot)
             Etot = round((Etot + (2600*24) + Etotval),1)
@@ -75,7 +75,7 @@ while True:
             delayed_date1 = date - dt.timedelta(hours=2)
             print("20")
             s11 = bytes("W1 " + str(delayed_date1) + " "+ str(W2val), 'utf-8')
-            producer.send('dailyAggr', s11, partition=1)
+            producer.send('dailyAggr', s11, partition=3)
             print("W1", delayed_date1, W2val)
             count3 = 0
 
