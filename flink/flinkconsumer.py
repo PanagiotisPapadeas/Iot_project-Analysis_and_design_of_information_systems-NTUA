@@ -144,7 +144,8 @@ def live_streaming_layer(input_path, output_path):
     
     result = with_timestamp_and_watermarks.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
-               .reduce(lambda v1, v2: (v1[0], v1[1], (v1[2] + v2[2])/2), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+               .reduce(lambda v1, v2: (v1[0], v1[1], (v1[2] + v2[2])), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
+               .map(lambda v: (v[0], v[1], v[2]/4), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
 
     result1 = with_timestamp_and_watermarks1.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
@@ -180,8 +181,8 @@ def live_streaming_layer(input_path, output_path):
     # else:
     print("Printing result to stdout. Use --output to specify output path.")
     #ds.print()
-    #result.print()
-    result1.print()
+    result.print()
+    #result1.print()
     #result2.print()
     #print(result2[2], "edobroskimou")
     #result3.print()
