@@ -204,11 +204,12 @@ def live_streaming_layer(input_path, output_path):
     resultfinal = with_timestamp_and_watermarks_union \
                    .map(lambda v: (v[0], v[1], v[2]) if v[0] == 'Etot' else (v[0], v[1], -1*v[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
                    .window_all(TumblingEventTimeWindows.of(Time.seconds(3602))) \
-                   .reduce (lambda v1, v2: ('AggDayRestEtot', v1[1], v1[2]+v2[2])) 
+                   .reduce (lambda v1, v2: ('AggDayRestEtot', v1[1], v1[2]+v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) 
 
     resultfinal1 = with_timestamp_and_watermarks_union1 \
+                   .map(lambda v: (v[0], v[1], v[2]) if v[0] == 'Wtot' else (v[0], v[1], -1*v[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
                    .window_all(TumblingEventTimeWindows.of(Time.seconds(3600))) \
-                   .reduce(lambda v1, v2: ('AggDayRestWtot', v1[1], v1[2] - v2[2]) if v1[0] == 'Wtot' else (('AggDayRestWtot', v1[1], v2[2] - v1[2]) if v2[0] == 'Wtot' else ('AggDayRestWtot', v1[1], - v1[2] - v2[2])), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+                   .reduce(lambda v1, v2: ('AggDayRestWtot', v1[1], v1[2] + v2[2]) , output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
     
     resultfinal.print()
 
