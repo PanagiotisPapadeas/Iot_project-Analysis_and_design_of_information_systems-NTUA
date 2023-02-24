@@ -21,6 +21,15 @@ class KafkaRowTimestampAssigner(TimestampAssigner):
         #print(final)
         return final
 
+def my_map_func(event):
+    x = []
+    for i in event.split():      
+        x.append(i)
+    temp = x[1] + " " + x[2]    
+    y = (x[0], temp, float(x[3])) # (device, timestamps, value)
+
+    return y  
+
 def live_streaming_layer(input_path, output_path):
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
@@ -41,12 +50,13 @@ def live_streaming_layer(input_path, output_path):
         #     source_name="file_source"
         # )
 
+    # -------------------------- Thermal Sensors --------------------------
     partition_set = {
-        KafkaTopicPartition("dailyAggr", 2),
+        KafkaTopicPartition("dailyAggr", 0),
         #KafkaTopicPartition("dailyAgg", 5)
     }
 
-    source = KafkaSource.builder() \
+    thermal_sensors = KafkaSource.builder() \
         .set_bootstrap_servers('localhost:9092') \
         .set_partitions(partition_set) \
         .set_group_id("my-group") \
@@ -54,16 +64,7 @@ def live_streaming_layer(input_path, output_path):
         .set_value_only_deserializer(SimpleStringSchema()) \
         .build()
 
-    ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "Kafka Source") # .for_bounded_out_of_orderness(Duration.ofSeconds(48*3600)).with_timestamp_assigner(KafkaRowTimestampAssigner())
-
-    def my_map_func(event):
-        x = []
-        for i in event.split():      
-            x.append(i)
-        temp = x[1] + " " + x[2]    
-        y = (x[0], temp, float(x[3])) # (device, timestamps, value)
-
-        return y  
+    ds = env.from_source(thermal_sensors, WatermarkStrategy.no_watermarks(), "Kafka Source") # .for_bounded_out_of_orderness(Duration.ofSeconds(48*3600)).with_timestamp_assigner(KafkaRowTimestampAssigner())
 
     ds = ds.map(my_map_func, output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
 
@@ -73,6 +74,34 @@ def live_streaming_layer(input_path, output_path):
                                     .with_timestamp_assigner(KafkaRowTimestampAssigner()))
 
     result = with_timestamp_and_watermarks.key_by(lambda i: i[0]) \
+               .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
+               .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
+
+
+# -------------------------- Other Sensors --------------------------
+    partition_set1 = {
+        KafkaTopicPartition("dailyAggr", 1),
+        #KafkaTopicPartition("dailyAgg", 5)
+    }
+
+    other_sensors = KafkaSource.builder() \
+        .set_bootstrap_servers('localhost:9092') \
+        .set_partitions(partition_set1) \
+        .set_group_id("my-group") \
+        .set_starting_offsets(KafkaOffsetsInitializer.earliest()) \
+        .set_value_only_deserializer(SimpleStringSchema()) \
+        .build()
+
+    ds1 = env.from_source(other_sensors, WatermarkStrategy.no_watermarks(), "Kafka Source") # .for_bounded_out_of_orderness(Duration.ofSeconds(48*3600)).with_timestamp_assigner(KafkaRowTimestampAssigner())
+
+    ds1 = ds1.map(my_map_func, output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+
+    with_timestamp_and_watermarks1 = ds1.filter(lambda e: e) \
+                                    .assign_timestamps_and_watermarks(WatermarkStrategy \
+                                    .for_bounded_out_of_orderness(Duration.of_seconds(21)) \
+                                    .with_timestamp_assigner(KafkaRowTimestampAssigner()))
+
+    result1 = with_timestamp_and_watermarks1.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
                .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
 
@@ -95,6 +124,7 @@ def live_streaming_layer(input_path, output_path):
     print("Printing result to stdout. Use --output to specify output path.")
 
     result.print()
+    result1.print()
 
     # submit for execution
     env.execute()

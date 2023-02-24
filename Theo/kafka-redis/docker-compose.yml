@@ -41,7 +41,8 @@
 #       KAFKA_JMX_HOSTNAME: localhost
 
 # -------------------------------------- flink -------------------------------------------------
-
+version: '3'
+services:
   jobmanager:
     image: flink:1.16.1-scala_2.12
     ports:
@@ -62,4 +63,3 @@
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 2
 
-# -------------------------------------- kafrka-connect -------------------------------------------------
