@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sudo docker run -d -p 3000:3000 --name=grafana -e "GF_INSTALL_PLUGINS=redis-datasource" grafana/grafana
+
 sudo docker compose up -d
 
 echo "$(tput setaf 6)Creating dailyAggr topic...$(tput setaf 2)"
