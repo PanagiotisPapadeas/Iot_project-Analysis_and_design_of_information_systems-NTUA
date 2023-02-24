@@ -8,7 +8,7 @@ from pyflink.common.watermark_strategy import TimestampAssigner
 from pyflink.common import WatermarkStrategy, Encoder, Types, SimpleStringSchema, Time, Duration
 from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode, AggregateFunction
 from pyflink.datastream.connectors.file_system import FileSource, StreamFormat, FileSink, OutputFileConfig, RollingPolicy
-from pyflink.datastream.connectors.kafka import KafkaSource, KafkaOffsetsInitializer, KafkaTopicPartition
+from pyflink.datastream.connectors.kafka import DeliveryGuarantee, KafkaRecordSerializationSchema, KafkaSink, KafkaSource, KafkaOffsetsInitializer, KafkaTopicPartition
 from pyflink.datastream.window import TumblingEventTimeWindows, TumblingProcessingTimeWindows, SlidingEventTimeWindows
 
 class AverageAggregate(AggregateFunction):
@@ -203,7 +203,7 @@ def live_streaming_layer(input_path, output_path):
     
     resultfinal = with_timestamp_and_watermarks_union \
                    .map(lambda v: (v[0], v[1], v[2]) if v[0] == 'Etot' else (v[0], v[1], -1*v[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
-                   .window_all(TumblingEventTimeWindows.of(Time.seconds(3602))) \
+                   .window_all(TumblingEventTimeWindows.of(Time.seconds(3600))) \
                    .reduce (lambda v1, v2: ('AggDayRestEtot', v1[1], v1[2]+v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) 
 
     resultfinal1 = with_timestamp_and_watermarks_union1 \
@@ -211,8 +211,23 @@ def live_streaming_layer(input_path, output_path):
                    .window_all(TumblingEventTimeWindows.of(Time.seconds(3600))) \
                    .reduce(lambda v1, v2: ('AggDayRestWtot', v1[1], v1[2] + v2[2]) , output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
     
-    resultfinal.print()
+    #resultfinal.print()
 
+
+    sink = KafkaSink.builder() \
+        .set_bootstrap_servers('localhost:9092') \
+        .set_record_serializer(
+            KafkaRecordSerializationSchema.builder()
+                .set_topic("flinkAggr")
+                .set_value_serialization_schema(SimpleStringSchema())
+                .build()
+        ) \
+        .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
+        .build()
+
+    resultfinal.map(lambda x: str(x[0])+" "+str(x[1])+" "+str(x[2]), output_type=Types.STRING()).sink_to(sink)
+
+    resultfinal.print()
     #resultfinal1.print()
 
 
@@ -238,8 +253,8 @@ def live_streaming_layer(input_path, output_path):
     print("Printing result to stdout. Use --output to specify output path.")
     #ds.print()
     #result.print()
-    result1.print()
-    result2.print()
+    #result1.print()
+    #result2.print()
     #print(result2[2], "edobroskimou")
     #result3.print()
     #result4.print()
