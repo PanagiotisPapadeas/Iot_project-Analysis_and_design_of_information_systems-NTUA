@@ -169,31 +169,37 @@ def live_streaming_layer(input_path, output_path):
     result = with_timestamp_and_watermarks.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
                .reduce(lambda v1, v2: (v1[0], v1[1], (v1[2] + v2[2])), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
-               .map(lambda v: (v[0], v[1], v[2]/4), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+               .map(lambda v: ('AggDay'+v[0], v[1], v[2]/4), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
     
     #Etot
     result2 = with_timestamp_and_watermarks2.key_by(lambda i: i[0]) \
                .window(SlidingEventTimeWindows.of(Time.seconds(7198), Time.seconds(3600))) \
-               .reduce(lambda v1, v2: (v1[0], str(datetime.strptime(v1[1], '%Y-%m-%d %H:%M:%S') - timedelta(minutes=45)), v2[2] - v1[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+               .reduce(lambda v1, v2: (v1[0], str(datetime.strptime(v1[1], '%Y-%m-%d %H:%M:%S') - timedelta(minutes=45)), v2[2] - v1[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
+               .map(lambda v: ('AggDayDiff'+v[0], v[1], v[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
     
     #HVaC, MiaC
     result1 = with_timestamp_and_watermarks1.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
-               .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
-    
+               .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
+               .map(lambda v: ('AggDay'+v[0], v[1], v[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+  
     #Mtot
     result4 = with_timestamp_and_watermarks4.key_by(lambda i: i[0]) \
                .window(SlidingEventTimeWindows.of(Time.seconds(7198), Time.seconds(3600))) \
-               .reduce(lambda v1, v2: (v1[0], str(datetime.strptime(v1[1], '%Y-%m-%d %H:%M:%S') - timedelta(minutes=45)), v2[2] - v1[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+               .reduce(lambda v1, v2: (v1[0], str(datetime.strptime(v1[1], '%Y-%m-%d %H:%M:%S') - timedelta(minutes=45)), v2[2] - v1[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
+               .map(lambda v: ('AggDayDiff'+v[0], v[1], v[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+
 
     # result2 = with_timestamp_and_watermarks2.key_by(lambda i: i[0]) \
     #            .window(SlidingEventTimeWindows.of(Time.seconds(7000), Time.seconds(3600))) \
     #            .reduce(lambda v1, v2: (v1[0], str(datetime.strptime(v1[1], '%Y-%m-%d %H:%M:%S') - timedelta(minutes=45)), v2[2] - v1[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
     
+    #W1
     result3 = with_timestamp_and_watermarks3.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(3600))) \
                .allowed_lateness((2*86400+10)*1e3) \
-               .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+               .reduce(lambda v1, v2: (v1[0], v1[1], v1[2] + v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
+               .map(lambda v: ('AggDay'+v[0], v[1], v[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
 
     resultunion = result2.union(result1)
     resultunion1 = result4.union(result3)  
@@ -201,16 +207,20 @@ def live_streaming_layer(input_path, output_path):
     with_timestamp_and_watermarks_union = resultunion.filter(lambda e: e).assign_timestamps_and_watermarks(WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(1)).with_timestamp_assigner(KafkaRowTimestampAssigner()))
     with_timestamp_and_watermarks_union1 = resultunion1.filter(lambda e: e).assign_timestamps_and_watermarks(WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(1)).with_timestamp_assigner(KafkaRowTimestampAssigner()))
     
+    #AggDayRestEtot
     resultfinal = with_timestamp_and_watermarks_union \
-                   .map(lambda v: (v[0], v[1], v[2]) if v[0] == 'Etot' else (v[0], v[1], -1*v[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
+                   .map(lambda v: (v[0], v[1], v[2]) if v[0] == 'AggDayDiffEtot' else (v[0], v[1], -1*v[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
                    .window_all(TumblingEventTimeWindows.of(Time.seconds(3600))) \
                    .reduce (lambda v1, v2: ('AggDayRestEtot', v1[1], v1[2]+v2[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) 
-
+    
+    #AggDayRestWtot
     resultfinal1 = with_timestamp_and_watermarks_union1 \
-                   .map(lambda v: (v[0], v[1], v[2]) if v[0] == 'Wtot' else (v[0], v[1], -1*v[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
+                   .map(lambda v: (v[0], v[1], v[2]) if v[0] == 'AggDayDiffWtot' else (v[0], v[1], -1*v[2]), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
                    .window_all(TumblingEventTimeWindows.of(Time.seconds(3600))) \
                    .reduce(lambda v1, v2: ('AggDayRestWtot', v1[1], v1[2] + v2[2]) , output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
     
+    #AggDayAll
+    resultunionall = result.union(result1, result2, result3, result4, result, resultfinal, resultfinal1)
     #resultfinal.print()
 
 
@@ -222,10 +232,10 @@ def live_streaming_layer(input_path, output_path):
                 .set_value_serialization_schema(SimpleStringSchema())
                 .build()
         ) \
-        .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
+        .set_delivery_guarantee(DeliveryGuarantee.NONE) \
         .build()
 
-    resultfinal.map(lambda x: str(x[0])+" "+str(x[1])+" "+str(x[2]), output_type=Types.STRING()).sink_to(sink)
+    resultunionall.map(lambda x: str(x[0])+" "+str(x[1])+" "+str(x[2]), output_type=Types.STRING()).sink_to(sink)
 
     resultfinal.print()
     #resultfinal1.print()
