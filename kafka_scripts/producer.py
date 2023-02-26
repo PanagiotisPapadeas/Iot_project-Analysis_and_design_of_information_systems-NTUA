@@ -79,15 +79,15 @@ while True:
             print("W1", delayed_date1, W2val)
             count3 = 0
 
-        # #every 30 hours    
-        # if (count4 >= 15):
-        #     W3val = round(random.uniform(0, 1),1)
-        #     delayed_date2 = date - dt.timedelta(hours=240)
-        #     print("30")
-        #     s12 = bytes("W1 " + str(delayed_date2) + " "+ str(W3val), 'utf-8')
-        #     producer.send('asynchronous', s12)
-        #     print("W1", delayed_date2, W3val)
-        #     count4 = 0
+        #every 30 hours    
+        if (count4 >= 4):
+            W3val = round(random.uniform(0, 1),1)
+            delayed_date2 = date - dt.timedelta(hours=240)
+            print("30")
+            s12 = bytes("W1 " + str(delayed_date2) + " "+ str(W3val), 'utf-8')
+            producer.send('lateRej', s12)
+            print("W1", delayed_date2, W3val)
+            count4 = 0
 
         date = date + dt.timedelta(minutes=15)
         t1 = dt.datetime.now()
