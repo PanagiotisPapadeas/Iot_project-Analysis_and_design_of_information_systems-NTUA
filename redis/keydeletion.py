@@ -1,9 +1,11 @@
 import redis
 
-r = redis.Redis(
-  host='redis-10829.c55.eu-central-1-1.ec2.cloud.redislabs.com',
-  port=10829,
-  password='ZZRzLsLoJODxbmXZREbi1bFiGd3AfsLK')
+# r = redis.Redis(
+#   host='redis-10829.c55.eu-central-1-1.ec2.cloud.redislabs.com',
+#   port=10829,
+#   password='ZZRzLsLoJODxbmXZREbi1bFiGd3AfsLK')
+
+r = redis.Redis(host='localhost', port=6379, db=0)
 
 r.execute_command("TS.DEL TH1 1500000000000 1600000000000")
 r.execute_command("TS.DEL TH2 1500000000000 1600000000000")

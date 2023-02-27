@@ -1,9 +1,11 @@
 import redis
 
-r = redis.Redis(
-  host='redis-10829.c55.eu-central-1-1.ec2.cloud.redislabs.com',
-  port=10829,
-  password='ZZRzLsLoJODxbmXZREbi1bFiGd3AfsLK')
+# r = redis.Redis(
+#   host='redis-10829.c55.eu-central-1-1.ec2.cloud.redislabs.com',
+#   port=10829,
+#   password='ZZRzLsLoJODxbmXZREbi1bFiGd3AfsLK')
+
+r = redis.Redis(host='localhost', port=6379, db=0)
 
 r.execute_command("ts.create TH1")
 r.execute_command("ts.create TH2")
