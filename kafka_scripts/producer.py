@@ -5,8 +5,8 @@ producer = KafkaProducer(bootstrap_servers='localhost:9092')
 
 t1 = dt.datetime.now()
 date = dt.datetime(2020, 1, 1, 0, 0, 0)
-Etot = 1500.8
-Wtot = 80.8
+Etot = 0
+Wtot = 0
 count2 = count3 = count4 = 0
 while True:
     time = dt.datetime.now()
@@ -55,35 +55,37 @@ while True:
             print("Mov1", move_date, 1)
         
         #every 1 day
-        if (count2 >= 4):
+        if (count2 >= 96):
             Etotval = round(random.uniform(-1000, 1000),1)
             Wtotval = round(random.uniform(-10, 10),1)
-            print("40")
+            print("Day")
+            Etot = round((Etot + (2600*24) + Etotval),1)
+            Wtot = round((Wtot + 110 + Wtotval),1)
             s9 = bytes("Etot " + str(date) + " "+ str(Etot), 'utf-8')
             s10 = bytes("Wtot " + str(date) + " "+ str(Wtot), 'utf-8')
             producer.send('dailyAggr', s9, partition=2)
             producer.send('dailyAggr', s10, partition=4)
             print("Etot", date, Etot)
             print("Wtot", date, Wtot)
-            Etot = round((Etot + (2600*24) + Etotval),1)
-            Wtot = round((Wtot + 110 + Wtotval),1)
+            # Etot = round((Etot + (2600*24) + Etotval),1)
+            # Wtot = round((Wtot + 110 + Wtotval),1)
             count2 = 0
 
         #every 5 hours    
-        if (count3 >= 2):
+        if (count3 >= 20):
             W2val = round(random.uniform(0, 1),1)
             delayed_date1 = date - dt.timedelta(hours=2)
-            print("20")
+            print("Late_accept")
             s11 = bytes("W1 " + str(delayed_date1) + " "+ str(W2val), 'utf-8')
             producer.send('dailyAggr', s11, partition=3)
             print("W1", delayed_date1, W2val)
             count3 = 0
 
         #every 30 hours    
-        if (count4 >= 4):
+        if (count4 >= 120):
             W3val = round(random.uniform(0, 1),1)
             delayed_date2 = date - dt.timedelta(hours=240)
-            print("30")
+            print("Late_rej")
             s12 = bytes("W1 " + str(delayed_date2) + " "+ str(W3val), 'utf-8')
             producer.send('lateRej', s12)
             print("W1", delayed_date2, W3val)
