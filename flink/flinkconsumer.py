@@ -136,7 +136,7 @@ def live_streaming_layer(input_path, output_path):
     result = with_timestamp_and_watermarks.key_by(lambda i: i[0]) \
                .window(TumblingEventTimeWindows.of(Time.seconds(86400))) \
                .reduce(lambda v1, v2: (v1[0], v1[1], (v1[2] + v2[2])), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()])) \
-               .map(lambda v: ('AggDay'+v[0], str(datetime.strptime(v[1], '%Y-%m-%d %H:%M:%S') - timedelta(minutes=120)), v[2]/4), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
+               .map(lambda v: ('AggDay'+v[0], str(datetime.strptime(v[1], '%Y-%m-%d %H:%M:%S') - timedelta(minutes=120)), v[2]/96), output_type=Types.TUPLE([Types.STRING(), Types.STRING(), Types.FLOAT()]))
     
     #Etot
     result2 = with_timestamp_and_watermarks2.key_by(lambda i: i[0]) \
